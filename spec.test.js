@@ -234,6 +234,12 @@ const korea = [
   },
 ];
 
-for (const c of [...play, ...korea]) {
+// 합성 문구 — 안내문이 아닌 텍스트에서 오탐하지 않는지 (CLAUDE.md: 음성 케이스만 합성 허용, 여기에 따로 둔다)
+const notSpecs = [
+  { name: '오탐 방지: "3,000 x 2개" — 단위 없이 한쪽만 작으면 크기가 아니다', text: '배송비 3,000 x 2개 결제 가능합니다', want: null },
+  { name: '오탐 방지: "0x1F" — 0이 든 값은 크기도 비율도 아니다', text: 'Register 0x1F should be cleared', want: null },
+];
+
+for (const c of [...play, ...korea, ...notSpecs]) {
   test(c.name, () => assert.deepEqual(parseSpec(c.text), c.want));
 }

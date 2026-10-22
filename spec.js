@@ -62,12 +62,15 @@ function parseLine(line) {
     ...[...masked.matchAll(AXB_RE)].map(m => ({ m, w: [+m[1], +m[1]], h: [+m[3], +m[3]], unit: m[2] || m[4] })),
   ];
 
-  const ratios = /비율|ratio/i.test(line) ? [...line.matchAll(RATIO_RE)].map(m => [+m[1], +m[2]]) : [];
+  const ratios = /비율|ratio/i.test(line) ? [...line.matchAll(RATIO_RE)].map(m => [+m[1], +m[2]]).filter(([a, b]) => a && b) : [];
   const px = [];
   for (const d of dims) {
+    if (!d.w[0] || !d.h[0]) continue; // 0이 든 값은 크기가 아니다 ("0x1F")
     const unit = (d.unit || '').toLowerCase();
+    const small = [d.w[1] <= 20, d.h[1] <= 20];
     // cm·mm, 또는 단위 없는 작은 수("반명함판(3X4)")는 물리 크기 → 비율로만 쓴다 (DPI 가정 회피)
-    if (unit === 'cm' || unit === 'mm' || (!unit && d.w[1] <= 20 && d.h[1] <= 20)) ratios.push([d.w[0], d.h[0]]);
+    if (unit === 'cm' || unit === 'mm' || (!unit && small[0] && small[1])) ratios.push([d.w[0], d.h[0]]);
+    else if (!unit && (small[0] || small[1])) continue; // 단위 없이 한쪽만 작으면 크기가 아니다 ("3,000 x 2개")
     else px.push(d);
   }
   const uniqRatios = [...new Map(ratios.map(r => [r.join(':'), r])).values()];

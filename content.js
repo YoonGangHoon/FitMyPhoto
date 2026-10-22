@@ -6,10 +6,12 @@ const CARD = 'upload-fit-card'; // 우리 UI의 호스트 태그
 let replaying = false;
 // 최근 클릭 (새 것부터). 업로드 트리거가 input과 DOM상 멀리 있는 사이트 대응 — Play Console은 모든 슬롯이 패널 속 input 하나를 공유한다
 const recentClicks = [];
+const latest = new WeakMap(); // input → 가장 최근 선택의 토큰. 예전 선택이 늦게 끝나 새 선택을 덮어쓰지 않게
+const openCards = new WeakMap(); // input → 떠 있는 카드를 닫는 함수
 
 window.addEventListener('click', e => {
   const path = e.composedPath();
-  if (path.some(n => n.localName === CARD)) return; // 카드 자신의 문구("8MB 이하")를 규격으로 읽지 않게
+  if (!(path[0] instanceof Element) || path.some(n => n.localName === CARD)) return; // 카드 자신의 문구("8MB 이하")를 규격으로 읽지 않게
   recentClicks.unshift({ el: path[0], at: Date.now() });
   recentClicks.length = Math.min(recentClicks.length, 5);
 }, true);
@@ -27,25 +29,73 @@ window.addEventListener('change', e => {
 
 // 규격 찾기 → (맞출 게 있으면) 확인 카드 → 변환 → 다시 넣기. 어디서 실패하든 원본은 반드시 들어간다.
 async function handle(input, files) {
+  const token = {};
+  latest.set(input, token);
+  openCards.get(input)?.(); // 이전 선택의 카드가 떠 있으면 닫는다 — 그 선택은 버려진다
+  const current = () => latest.get(input) === token;
   let out = files;
+  let busy;
   try {
-    const spec = findSpec(input);
     const images = files.filter(f => f.type.startsWith('image/'));
-    const checks = spec && images.length ? (await Promise.all(images.map(f => inspect(f, spec)))).filter(Boolean) : [];
-    if (checks.some(c => c.needed)) {
-      const fit = await ask(spec, checks);
-      if (fit) out = await Promise.all(files.map(f => convert(f, spec, fit)));
+    const spec = images.length ? withAccept(findSpec(input), input.accept) : null;
+    const checks = [];
+    if (spec) for (const f of images) { const c = await inspect(f, spec); if (c) checks.push(c); } // 한 장씩 (메모리)
+    const need = new Set(checks.filter(c => c.needed).map(c => c.file));
+    if (need.size && current()) {
+      const fit = await ask(input, spec, checks);
+      if (fit && current()) {
+        busy = toast('규격에 맞추는 중…', 0);
+        out = [];
+        for (const f of files) out.push(need.has(f) ? await convert(f, spec, fit) : f); // 필요한 파일만
+      }
     }
   } catch (e) {
     console.warn('[upload-fit]', e);
     toast(`규격에 맞추지 못해 원본을 넣었어요. (${e.message})`);
     out = files;
+  } finally {
+    busy?.remove();
   }
+  if (!current()) return; // 그 사이 다시 골랐다 — 새 선택이 이긴다
+  if (!input.isConnected) return void toast('업로드 칸이 닫혀서 파일을 넣지 못했어요. 다시 골라 주세요.');
   replay(input, out);
 }
 
-// 이미 규격에 맞는지, 맞추면 어떤 크기가 되는지. 못 읽는 이미지(HEIC 등)는 null — 손대지 않는다.
+// 기준점 후보: 최근 클릭(새 것부터) → aria-describedby → input 자신. 후보마다 조상으로 올라가며 처음 나오는 규격을 쓴다.
+// parseSpec은 슬롯 규격이 섞이면 null이므로, 너무 넓게 올라간 후보는 저절로 건너뛰고 다음 후보로 넘어간다.
+function findSpec(input) {
+  const clicks = recentClicks.filter(c => c.el.isConnected && Date.now() - c.at < 5 * 60e3).map(c => c.el);
+  const described = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean).map(id => document.getElementById(id)).filter(Boolean);
+  const seen = new Set();
+  for (const start of [...clicks, ...described, input]) {
+    for (let el = start; el; el = el.parentElement || el.getRootNode().host) {
+      if (seen.has(el)) break; // 앞 후보가 이미 본 조상: 여기부터 위는 전부 null이었다
+      seen.add(el);
+      if (!el.checkVisibility()) continue; // 안 보이는 요소의 innerText는 줄바꿈 없이 합쳐져 줄 단위 판단이 깨진다
+      const text = el.innerText;
+      if (text.length > 10_000) break; // ponytail: 너무 넓으면 포기 — 페이지 전체의 엉뚱한 문구로 오탐하느니 안 하는 게 낫다. Play는 패널을 열어도 6천 자대
+      const spec = parseSpec(text);
+      if (spec) return spec;
+    }
+  }
+  return null;
+}
+
+// input의 accept도 형식 규격으로 쓴다 (".png"만 받는 칸에 JPEG를 넣지 않게). 안내문과 겹치면 교집합.
+function withAccept(spec, accept) {
+  if (!spec) return null;
+  const list = accept.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (!list.length || list.some(s => s === '*' || s.endsWith('/*'))) return spec;
+  const fromAccept = [...new Set(list.map(s => FORMATS[s.replace(/^\.|^image\//, '')]).filter(Boolean))];
+  if (!fromAccept.length) return spec;
+  const both = spec.formats ? spec.formats.filter(f => fromAccept.includes(f)) : fromAccept;
+  return { ...spec, formats: both.length ? both.sort() : spec.formats };
+}
+
+// 이미 규격에 맞는지, 맞추면 어떤 크기가 되는지. 손댈 수 없으면 null:
+// 허용 형식을 canvas가 못 만들거나(PDF·GIF만), 못 읽는 이미지(HEIC 등)
 async function inspect(file, spec) {
+  if (!outputType(spec, false)) return null;
   let bmp;
   try {
     bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -53,6 +103,7 @@ async function inspect(file, spec) {
     return null;
   }
   const [w, h] = [bmp.width, bmp.height];
+  bmp.close();
   const cover = plan(w, h, spec, 'cover');
   const contain = plan(w, h, spec, 'contain');
   const typeOk = !spec.formats || spec.formats.includes(file.type.replace('image/', ''));
@@ -60,8 +111,9 @@ async function inspect(file, spec) {
   return { file, w, h, cover, contain, needed };
 }
 
-// 확인 카드. "맞춰서 넣기" → 'cover' | 'contain', "원본 그대로"·Esc → null
-function ask(spec, checks) {
+// 확인 카드. "맞춰서 넣기" → 'cover' | 'contain', "원본 그대로"·Esc·다시 고름 → null
+function ask(input, spec, checks) {
+  if (innerWidth < 360 || innerHeight < 240) return Promise.resolve(null); // 카드가 안 들어가는 작은 iframe — 묻지 않고 원본
   return new Promise(resolve => {
     const host = document.createElement(CARD);
     const root = host.attachShadow({ mode: 'open' });
@@ -85,22 +137,34 @@ function ask(spec, checks) {
     const preview = () => { root.getElementById('to').textContent = `${first[fit()].w}×${first[fit()].h}`; };
     preview();
     root.addEventListener('change', preview);
-    const done = v => { host.remove(); resolve(v); };
+    const done = v => { host.remove(); openCards.delete(input); resolve(v); };
+    openCards.set(input, () => done(null));
     root.getElementById('apply').onclick = () => done(fit());
     root.getElementById('orig').onclick = () => done(null);
     root.addEventListener('keydown', e => { if (e.key === 'Escape') done(null); });
+    isolate(host);
     document.documentElement.append(host);
     root.getElementById('apply').focus();
   });
 }
 
-function toast(message) {
+function toast(message, ms = 6000) {
   const host = document.createElement(CARD);
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `${STYLE}<div class="card" role="status"></div>`;
   root.querySelector('.card').textContent = message;
+  isolate(host);
   document.documentElement.append(host);
-  setTimeout(() => host.remove(), 6000);
+  if (ms) setTimeout(() => host.remove(), ms);
+  return host;
+}
+
+// 카드에서 난 이벤트가 페이지로 새지 않게 — 페이지의 "바깥 클릭/Esc로 닫기" 모달이 업로드 칸째 닫히는 걸 막는다.
+// capture 단계에서 듣는 페이지 리스너는 못 막는다 (docs/design.md 리스크)
+function isolate(host) {
+  for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'keydown', 'keyup', 'focusin', 'focusout', 'input', 'change']) {
+    host.addEventListener(type, e => e.stopPropagation());
+  }
 }
 
 function describeSpec(s) {
@@ -115,33 +179,6 @@ function describeSpec(s) {
   if (s.maxBytes) parts.push(`${s.maxBytes >= 1e6 ? `${+(s.maxBytes / 1e6).toFixed(1)}MB` : `${Math.ceil(s.maxBytes / 1e3)}KB`} 이하`);
   if (s.formats) parts.push(s.formats.map(f => f.toUpperCase()).join('/'));
   return parts.join(' · ');
-}
-
-const STYLE = `<style>
-  :host { all: initial; position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; color-scheme: light dark;
-    font: 14px/1.5 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
-  .card { box-sizing: border-box; width: 340px; max-width: calc(100vw - 32px); padding: 16px; border-radius: 12px;
-    background: Canvas; color: CanvasText; border: 1px solid #8885; box-shadow: 0 8px 28px #0004; }
-  p { margin: 0 0 8px; } .title { font-weight: 600; } .spec, .file { font-size: 13px; opacity: .85; }
-  fieldset { border: 0; padding: 0; margin: 4px 0 12px; display: flex; gap: 12px; } legend { font-size: 12px; opacity: .7; margin-bottom: 4px; }
-  .actions { display: flex; justify-content: flex-end; gap: 8px; }
-  button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #8886; background: transparent; color: inherit; cursor: pointer; }
-  button.primary { background: #1a73e8; border-color: #1a73e8; color: #fff; }
-  button:focus-visible, input:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
-</style>`;
-
-// 기준점 후보: 최근 클릭(새 것부터) → aria-describedby → input 자신. 후보마다 조상으로 올라가며 처음 나오는 규격을 쓴다.
-// parseSpec은 슬롯 규격이 섞이면 null이므로, 너무 넓게 올라간 후보는 저절로 건너뛰고 다음 후보로 넘어간다.
-function findSpec(input) {
-  const clicks = recentClicks.filter(c => Date.now() - c.at < 5 * 60e3).map(c => c.el);
-  const described = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean).map(id => document.getElementById(id)).filter(Boolean);
-  for (const start of [...clicks, ...described, input]) {
-    for (let el = start; el; el = el.parentElement || el.getRootNode().host) {
-      const spec = parseSpec(el.innerText || '');
-      if (spec) return spec;
-    }
-  }
-  return null;
 }
 
 function replay(input, files) {
@@ -160,3 +197,16 @@ function replay(input, files) {
 function isFileInput(el) {
   return el instanceof HTMLInputElement && el.type === 'file';
 }
+
+const STYLE = `<style>
+  :host { all: initial; position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; color-scheme: light dark;
+    font: 14px/1.5 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  .card { box-sizing: border-box; width: 340px; max-width: calc(100vw - 32px); padding: 16px; border-radius: 12px;
+    background: Canvas; color: CanvasText; border: 1px solid #8885; box-shadow: 0 8px 28px #0004; }
+  p { margin: 0 0 8px; } .title { font-weight: 600; } .spec, .file { font-size: 13px; opacity: .85; }
+  fieldset { border: 0; padding: 0; margin: 4px 0 12px; display: flex; gap: 12px; } legend { font-size: 12px; opacity: .7; margin-bottom: 4px; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #8886; background: transparent; color: inherit; cursor: pointer; }
+  button.primary { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+  button:focus-visible, input:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+</style>`;

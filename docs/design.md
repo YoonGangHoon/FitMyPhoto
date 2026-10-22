@@ -50,6 +50,9 @@
 - cm 규격은 DPI를 가정해야 함 → 비율로만 쓰고, px는 사이트가 명시할 때만 신뢰
 - shadow DOM 안의 input은 못 잡음 — `change`는 `composed: false`라서 shadow root 밖(window)까지 안 나온다 (open이어도 마찬가지)
 - 우리가 다시 쏘는 이벤트는 `isTrusted: false` — 이걸 검사하는 사이트는 동작 안 함 (아직 본 적 없음)
+- 카드 이벤트는 host에서 전파를 막지만, 페이지가 capture 단계에서 듣는 "바깥 클릭/Esc" 리스너(Radix·Headless UI 일부)는 못 막는다. 그 경우 모달이 닫혀 input이 사라지면 "업로드 칸이 닫혀서…" 토스트로 알린다
+- 페이지가 file input에 `input` 이벤트만 직접 쏘면(뒤따르는 `change` 없이) 우리가 삼킨다 — `isTrusted` 검사로 고칠 수 있지만 test.html의 합성 선택이 깨진다 (CDP `DOM.setFileInputFiles`로 바꿔야 함)
+- 한 번에 고른 `a.png`와 `a.jpeg`가 둘 다 `a.jpg`가 된다 (이름 충돌)
 
 ## 수동 검증 체크리스트
 - [ ] Play Console: 1080×2340 (2:1 초과) 캡처 → 여백 모드 → 수락

@@ -42,19 +42,23 @@ function outputType(spec, alpha) {
 async function convert(file, spec, fit = 'cover') {
   if (!file.type.startsWith('image/')) return file;
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); // EXIF 회전 반영
-  const alpha = /png|webp|gif/.test(file.type) && hasAlpha(bmp);
-  const type = outputType(spec, alpha);
-  if (!type) return file;
-  let { w, h } = plan(bmp.width, bmp.height, spec, fit);
-  for (let tries = 0; tries < 12; tries++) {
-    const blob = await encode(render(bmp, w, h, fit, type === 'png' && alpha), type, spec.maxBytes);
-    if (blob) return new File([blob], rename(file.name, type), { type: blob.type, lastModified: Date.now() });
-    // 품질을 낮춰도 용량을 못 맞춤 → 크기가 고정이 아니고 하한 위라면 줄여서 다시
-    const [nw, nh] = [Math.round(w * 0.85), Math.round(h * 0.85)];
-    if (spec.sizes || !aboveMin(nw, nh, spec)) break;
-    [w, h] = [nw, nh];
+  try {
+    const alpha = /png|webp|gif/.test(file.type) && hasAlpha(bmp);
+    const type = outputType(spec, alpha);
+    if (!type) return file;
+    let { w, h } = plan(bmp.width, bmp.height, spec, fit);
+    for (let tries = 0; tries < 12; tries++) {
+      const blob = await encode(render(bmp, w, h, fit, type === 'png' && alpha), type, spec.maxBytes);
+      if (blob) return new File([blob], rename(file.name, type), { type: blob.type, lastModified: Date.now() });
+      // 품질을 낮춰도 용량을 못 맞춤 → 크기가 고정이 아니고 하한 위라면 줄여서 다시
+      const [nw, nh] = [Math.round(w * 0.85), Math.round(h * 0.85)];
+      if (spec.sizes || !aboveMin(nw, nh, spec)) break;
+      [w, h] = [nw, nh];
+    }
+    throw new Error(`용량 ${spec.maxBytes}바이트 이하로 맞출 수 없음`);
+  } finally {
+    bmp.close(); // 12MP 사진 한 장이 약 48MB — 바로 놓아준다
   }
-  throw new Error(`용량 ${spec.maxBytes}바이트 이하로 맞출 수 없음`);
 }
 
 function aboveMin(w, h, spec) {

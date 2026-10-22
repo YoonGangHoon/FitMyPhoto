@@ -212,15 +212,103 @@ function playUpload() {
   recentClicks.length = 0;
   play.addButtons.phone.click();
   play.uploadButton.click();
+  const changes = [];
   let resolve;
   const got = new Promise(r => (resolve = r));
-  play.input.addEventListener('change', () => resolve(play.input.files[0]));
+  play.input.addEventListener('change', () => { changes.push([...play.input.files]); resolve(play.input.files[0]); });
   return {
-    choose: f => pick(play.input, [f]),
+    input: play.input,
+    changes,
+    choose: (...fs) => pick(play.input, fs),
     received: () => Promise.race([got, new Promise((_, rej) => setTimeout(() => rej(new Error('페이지가 파일을 못 받음')), 10000))]),
     done: () => { play.root.remove(); document.querySelectorAll('upload-fit-card').forEach(c => c.remove()); },
   };
 }
+
+// ── 리뷰 반영 (2026-10-22) ──
+Object.assign(tests, {
+  async '#1 카드가 떠 있을 때 다시 고르면 새 선택만 들어간다 — 예전 선택이 늦게 덮어쓰지 않는다'(name) {
+    const play = playUpload();
+    play.choose(await image(1080, 2340));
+    await waitCard();
+    const second = await image(1080, 1920); // 이미 규격에 맞음 → 카드 없이 바로 통과
+    play.choose(second);
+    await settle(); await settle();
+    const cards = document.querySelectorAll('upload-fit-card').length;
+    check(name, play.changes.length === 1 && play.changes[0][0].size === second.size && cards === 0, JSON.stringify({ changes: play.changes.length, cards }));
+    play.done();
+  },
+  async '#2 카드 클릭·Esc가 페이지(document)로 새지 않는다'(name) {
+    const play = playUpload();
+    const leaked = [];
+    const spy = e => leaked.push(e.type);
+    for (const t of ['pointerdown', 'mousedown', 'click', 'keydown']) document.addEventListener(t, spy);
+    play.choose(await image(1080, 2340));
+    const card = await waitCard();
+    card.getElementById('orig').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+    card.getElementById('orig').dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, composed: true }));
+    card.getElementById('orig').click();
+    await play.received();
+    for (const t of ['pointerdown', 'mousedown', 'click', 'keydown']) document.removeEventListener(t, spy);
+    check(name, leaked.length === 0, leaked.join());
+    play.done();
+  },
+  async '#2 카드를 보는 사이 업로드 칸이 사라지면 알려준다 (조용히 사라지지 않게)'(name) {
+    const play = playUpload();
+    play.choose(await image(1080, 2340));
+    const card = await waitCard();
+    play.input.remove(); // 페이지 모달이 닫혀 input이 DOM에서 빠진 상황
+    card.getElementById('orig').click();
+    await settle();
+    const toastText = [...document.querySelectorAll('upload-fit-card')].map(c => c.shadowRoot.textContent).join();
+    check(name, /업로드 칸이 닫혀/.test(toastText) && play.changes.length === 0, toastText);
+    play.done();
+  },
+  async '#3 여러 장: 못 읽는 파일·이미 맞는 파일은 그대로, 필요한 파일만 변환'(name) {
+    const play = playUpload();
+    play.input.multiple = true;
+    const heic = new File(['x'], 'IMG.HEIC', { type: 'image/heic' });
+    const ok = await image(1080, 1920);
+    const big = await image(1080, 2340);
+    play.choose(heic, ok, big);
+    (await waitCard()).getElementById('apply').click();
+    await play.received();
+    const [a, b, c] = play.changes[0];
+    const [w, h] = await dims(c);
+    check(name, a === heic && b === ok && w === 1080 && h === 1920 && c.type === 'image/jpeg', JSON.stringify({ a: a.name, bSame: b === ok, w, h }));
+    play.done();
+  },
+  async '#4 DOM에서 빠진 예전 클릭은 기준점으로 쓰지 않는다'(name) {
+    const play = playFixture();
+    recentClicks.length = 0;
+    play.addButtons.phone.click();
+    play.root.remove(); // SPA에서 화면이 바뀜
+    const root = fixture('<input type="file">');
+    const spec = findSpec(root.querySelector('input'));
+    check(name, spec === null, JSON.stringify(spec));
+    root.remove();
+  },
+  async '#4 window에 쏜 click 이벤트에도 터지지 않는다'(name) {
+    window.dispatchEvent(new Event('click'));
+    const root = fixture('<input type="file">');
+    let error = null;
+    try { findSpec(root.querySelector('input')); } catch (e) { error = e; }
+    check(name, !error, String(error));
+    root.remove();
+  },
+  async '#7 안내문에 형식이 없으면 input accept(".png")를 따른다'(name) {
+    const root = fixture(`<label>※ 가로(120px), 세로(160px) 사이즈로 등록해 주세요. <input type="file" accept=".png"></label>`);
+    recentClicks.length = 0;
+    const input = root.querySelector('input');
+    let got;
+    input.addEventListener('change', () => (got = input.files[0]));
+    pick(input, [await image(1000, 1000)]);
+    (await waitCard()).getElementById('apply').click();
+    for (let i = 0; i < 200 && !got; i++) await settle();
+    check(name, got && got.type === 'image/png' && got.name === 'img.png', JSON.stringify(got && { type: got.type, name: got.name }));
+    root.remove();
+  },
+});
 
 async function waitCard() {
   for (let i = 0; i < 200; i++) {
