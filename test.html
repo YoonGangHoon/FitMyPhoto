@@ -132,7 +132,104 @@ const tests = {
     const pdf = new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' });
     check(name, (await convert(pdf, parseSpec(PLAY_PHONE))) === pdf);
   },
+
+  // ── 5단계: 확인 카드 (전체 흐름) ──
+  async '규격 요약 문구'(name) {
+    const s = describeSpec(parseSpec(PLAY_PHONE));
+    check(name, s === '변 320~3840px · 16:9 또는 9:16 · 8MB 이하 · JPEG/PNG', s);
+  },
+  async '전체 흐름: Play 휴대전화에 1080×2340 → 카드 → "맞춰서 넣기" → 페이지는 1080×1920 JPEG를 받는다'(name) {
+    const play = playUpload();
+    play.choose(await image(1080, 2340));
+    const card = await waitCard();
+    const preview = card.getElementById('to').textContent;
+    card.getElementById('apply').click();
+    const got = await play.received();
+    const [w, h] = await dims(got);
+    check(name, preview === '1080×1920' && w === 1080 && h === 1920 && got.type === 'image/jpeg', JSON.stringify({ preview, w, h, type: got.type }));
+    play.done();
+  },
+  async '전체 흐름: "여백 넣기"를 고르면 1316×2340'(name) {
+    const play = playUpload();
+    play.choose(await image(1080, 2340));
+    const card = await waitCard();
+    const contain = card.querySelector('input[value=contain]');
+    contain.checked = true;
+    contain.dispatchEvent(new Event('change', { bubbles: true }));
+    const preview = card.getElementById('to').textContent;
+    card.getElementById('apply').click();
+    const [w, h] = await dims(await play.received());
+    check(name, preview === '1316×2340' && w === 1316 && h === 2340, JSON.stringify({ preview, w, h }));
+    play.done();
+  },
+  async '전체 흐름: "원본 그대로"면 원본 파일이 들어간다'(name) {
+    const play = playUpload();
+    const original = await image(1080, 2340);
+    play.choose(original);
+    (await waitCard()).getElementById('orig').click();
+    const got = await play.received();
+    check(name, got.name === original.name && got.size === original.size && got.type === original.type, JSON.stringify({ name: got.name, size: got.size }));
+    play.done();
+  },
+  async '전체 흐름: Esc는 원본'(name) {
+    const play = playUpload();
+    const original = await image(1080, 2340);
+    play.choose(original);
+    (await waitCard()).getElementById('apply').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    const got = await play.received();
+    check(name, got.size === original.size && !document.querySelector('upload-fit-card'), JSON.stringify({ size: got.size }));
+    play.done();
+  },
+  async '이미 규격에 맞으면 카드 없이 그대로 통과'(name) {
+    const play = playUpload();
+    const ok = await image(1080, 1920);
+    play.choose(ok);
+    const got = await play.received();
+    check(name, got.size === ok.size && !document.querySelector('upload-fit-card'), JSON.stringify({ size: got.size }));
+    play.done();
+  },
+  async '못 읽는 이미지(HEIC 등)는 카드 없이 원본이 들어간다 — 업로드가 사라지면 안 된다'(name) {
+    const play = playUpload();
+    const heic = new File(['not really heic'], 'IMG_0001.HEIC', { type: 'image/heic' });
+    play.choose(heic);
+    const got = await play.received();
+    check(name, got === heic || (got.name === heic.name && got.size === heic.size), JSON.stringify({ name: got && got.name }));
+    play.done();
+  },
+  async '카드 안의 클릭은 규격 기준점으로 쓰지 않는다'(name) {
+    const play = playUpload();
+    play.choose(await image(1080, 2340));
+    (await waitCard()).getElementById('orig').click();
+    await play.received();
+    check(name, !recentClicks.some(c => c.el.getRootNode() !== document && c.el.getRootNode().host?.localName === 'upload-fit-card'), recentClicks.map(c => c.el.localName).join());
+    play.done();
+  },
 };
+
+// Play 구조에서 휴대전화 "애셋 추가" → "업로드"를 누른 뒤 파일을 고르는 흐름. 페이지가 받은 파일을 돌려준다.
+function playUpload() {
+  const play = playFixture();
+  recentClicks.length = 0;
+  play.addButtons.phone.click();
+  play.uploadButton.click();
+  let resolve;
+  const got = new Promise(r => (resolve = r));
+  play.input.addEventListener('change', () => resolve(play.input.files[0]));
+  return {
+    choose: f => pick(play.input, [f]),
+    received: () => Promise.race([got, new Promise((_, rej) => setTimeout(() => rej(new Error('페이지가 파일을 못 받음')), 10000))]),
+    done: () => { play.root.remove(); document.querySelectorAll('upload-fit-card').forEach(c => c.remove()); },
+  };
+}
+
+async function waitCard() {
+  for (let i = 0; i < 200; i++) {
+    const root = document.querySelector('upload-fit-card')?.shadowRoot;
+    if (root && root.getElementById('to')?.textContent) return root;
+    await new Promise(r => setTimeout(r, 25));
+  }
+  throw new Error('확인 카드가 안 뜸');
+}
 
 // 실제 안내문 원문 (spec.test.js와 같은 출처)
 const PLAY_PHONE = '휴대전화 스크린샷을 2~8장 업로드하세요. 스크린샷은 PNG 또는 JPEG, 장당 최대 8MB, 가로세로 비율 16:9 또는 9:16, 가로세로 길이는 320px X 3840px 사이여야 합니다.';
