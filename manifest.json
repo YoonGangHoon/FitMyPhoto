@@ -3,10 +3,23 @@
   "name": "upload-fit",
   "version": "0.1.0",
   "description": "업로드 칸 안내문을 읽고, 고른 이미지를 그 규격에 맞게 바꿔 넣어준다. 이미지는 브라우저 밖으로 나가지 않는다.",
+  "minimum_chrome_version": "105",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["spec.js", "convert.js", "content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "spec.js",
+        "convert.js",
+        "content.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
