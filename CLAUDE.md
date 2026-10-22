@@ -28,7 +28,7 @@
 | `convert.test.js` | `plan()`·`outputType()` | Node |
 | `test.html` | 브라우저 테스트. content script처럼 `spec.js`→`convert.js`→`content.js` 순서로 먼저 로드 | headless Chrome |
 | `browser.test.js` | `test.html` 실행기 (CDP, Node 내장 WebSocket) | Node + Chrome |
-| `icons/` | 16·32·48·128 PNG (128은 96px 그림 + 16px 투명 여백) | — |
+| `icons/` | 16·32는 사진만 단순하게, 48·128은 맞춤 모서리 + 사진 (128은 96px 그림 + 16px 투명 여백) | — |
 | `README.md`, `PRIVACY.md` | 사용자용 설명, 개인정보처리방침 (스토어 URL로 씀). 동작이 바뀌면 같이 고친다 | — |
 | `docs/store/` | 웹 스토어 등록 문구(`listing.md`), 스크린샷 1280×800, 프로모션 타일 440×280 | — |
 
