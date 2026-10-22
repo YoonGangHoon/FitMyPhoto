@@ -296,6 +296,15 @@ Object.assign(tests, {
     check(name, !error, String(error));
     root.remove();
   },
+  async '재검토 #1 버튼 안의 SVG 아이콘을 눌러도 규격을 찾는다 (SVG엔 innerText가 없다)'(name) {
+    const root = fixture(`<p>※ 가로(120px), 세로(160px) 사이즈로 등록해 주세요.</p><button type="button"><svg width="16" height="16"><path d="M0 0h16v16H0z"/></svg> 사진 올리기</button><input type="file">`);
+    recentClicks.length = 0;
+    root.querySelector('path').dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    let spec, error = null;
+    try { spec = findSpec(root.querySelector('input')); } catch (e) { error = e; }
+    check(name, !error && spec && JSON.stringify(spec.sizes) === '[[120,160]]', String(error || JSON.stringify(spec)));
+    root.remove();
+  },
   async '#7 안내문에 형식이 없으면 input accept(".png")를 따른다'(name) {
     const root = fixture(`<label>※ 가로(120px), 세로(160px) 사이즈로 등록해 주세요. <input type="file" accept=".png"></label>`);
     recentClicks.length = 0;

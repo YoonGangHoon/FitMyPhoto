@@ -46,12 +46,15 @@ async function handle(input, files) {
       if (fit && current()) {
         busy = toast('규격에 맞추는 중…', 0);
         out = [];
-        for (const f of files) out.push(need.has(f) ? await convert(f, spec, fit) : f); // 필요한 파일만
+        for (const f of files) {
+          if (!current()) break; // 그 사이 다시 골랐다 — 남은 변환은 버린다
+          out.push(need.has(f) ? await convert(f, spec, fit) : f); // 필요한 파일만
+        }
       }
     }
   } catch (e) {
     console.warn('[upload-fit]', e);
-    toast(`규격에 맞추지 못해 원본을 넣었어요. (${e.message})`);
+    if (current()) toast(`규격에 맞추지 못해 원본을 넣었어요. (${e.message})`);
     out = files;
   } finally {
     busy?.remove();
@@ -72,7 +75,7 @@ function findSpec(input) {
       if (seen.has(el)) break; // 앞 후보가 이미 본 조상: 여기부터 위는 전부 null이었다
       seen.add(el);
       if (!el.checkVisibility()) continue; // 안 보이는 요소의 innerText는 줄바꿈 없이 합쳐져 줄 단위 판단이 깨진다
-      const text = el.innerText;
+      const text = el.innerText ?? ''; // SVG 요소엔 innerText가 없다 (버튼 안 아이콘 클릭)
       if (text.length > 10_000) break; // ponytail: 너무 넓으면 포기 — 페이지 전체의 엉뚱한 문구로 오탐하느니 안 하는 게 낫다. Play는 패널을 열어도 6천 자대
       const spec = parseSpec(text);
       if (spec) return spec;
@@ -118,6 +121,7 @@ function ask(input, spec, checks) {
     const host = document.createElement(CARD);
     const root = host.attachShadow({ mode: 'open' });
     const first = checks.find(c => c.needed);
+    const needCount = checks.filter(c => c.needed).length;
     const canFit = checks.some(c => c.cover.w !== c.contain.w || c.cover.h !== c.contain.h);
     root.innerHTML = `${STYLE}
       <div class="card" role="dialog" aria-labelledby="t" aria-describedby="d">
@@ -132,7 +136,7 @@ function ask(input, spec, checks) {
     // 파일 이름 등 바깥 값은 textContent로만 넣는다
     root.getElementById('d').textContent = describeSpec(spec);
     root.getElementById('from').textContent = `${first.file.name} ${first.w}×${first.h}`;
-    root.getElementById('more').textContent = checks.length > 1 ? ` 외 ${checks.length - 1}장` : '';
+    root.getElementById('more').textContent = needCount > 1 ? ` 외 ${needCount - 1}장` : ''; // 맞출 파일만 센다
     const fit = () => root.querySelector('input[name=fit]:checked')?.value || 'cover';
     const preview = () => { root.getElementById('to').textContent = `${first[fit()].w}×${first[fit()].h}`; };
     preview();
