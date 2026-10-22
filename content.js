@@ -2,7 +2,7 @@
 // 브라우저는 파일을 고르면 input → change 순서로 이벤트를 쏜다. 둘 다 window capture 단계에서 멈추고,
 // change 때 처리한 다음 둘을 다시 쏜다. document_start에 등록하므로 페이지 리스너보다 항상 먼저다.
 
-const CARD = 'upload-fit-card'; // 우리 UI의 호스트 태그
+const CARD = 'fitmyphoto-card'; // 우리 UI의 호스트 태그
 let replaying = false;
 // 최근 클릭 (새 것부터). 업로드 트리거가 input과 DOM상 멀리 있는 사이트 대응 — Play Console은 모든 슬롯이 패널 속 input 하나를 공유한다
 const recentClicks = [];
@@ -53,7 +53,7 @@ async function handle(input, files) {
       }
     }
   } catch (e) {
-    console.warn('[upload-fit]', e);
+    console.warn('[FitMyPhoto]', e);
     if (current()) toast(`규격에 맞추지 못해 원본을 넣었어요. (${e.message})`);
     out = files;
   } finally {

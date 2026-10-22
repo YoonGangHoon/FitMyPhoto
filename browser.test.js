@@ -12,7 +12,7 @@ const { pathToFileURL } = require('node:url');
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 test('브라우저 (test.html)', { skip: !existsSync(CHROME) && `Chrome 없음: ${CHROME}` }, async t => {
-  const profile = mkdtempSync(path.join(tmpdir(), 'upload-fit-'));
+  const profile = mkdtempSync(path.join(tmpdir(), 'fitmyphoto-'));
   const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   try {
     const cdp = await connect(await devtoolsUrl(chrome));

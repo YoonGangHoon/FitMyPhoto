@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>upload-fit 브라우저 테스트</title>
+<title>FitMyPhoto 브라우저 테스트</title>
 <!-- content script 흉내: document_start처럼 페이지 스크립트보다 먼저 로드한다 -->
 <script src="spec.js"></script>
 <script src="convert.js"></script>
@@ -181,7 +181,7 @@ const tests = {
     play.choose(original);
     (await waitCard()).getElementById('apply').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
     const got = await play.received();
-    check(name, got.size === original.size && !document.querySelector('upload-fit-card'), JSON.stringify({ size: got.size }));
+    check(name, got.size === original.size && !document.querySelector('fitmyphoto-card'), JSON.stringify({ size: got.size }));
     play.done();
   },
   async '이미 규격에 맞으면 카드 없이 그대로 통과'(name) {
@@ -189,7 +189,7 @@ const tests = {
     const ok = await image(1080, 1920);
     play.choose(ok);
     const got = await play.received();
-    check(name, got.size === ok.size && !document.querySelector('upload-fit-card'), JSON.stringify({ size: got.size }));
+    check(name, got.size === ok.size && !document.querySelector('fitmyphoto-card'), JSON.stringify({ size: got.size }));
     play.done();
   },
   async '못 읽는 이미지(HEIC 등)는 카드 없이 원본이 들어간다 — 업로드가 사라지면 안 된다'(name) {
@@ -205,7 +205,7 @@ const tests = {
     play.choose(await image(1080, 2340));
     (await waitCard()).getElementById('orig').click();
     await play.received();
-    check(name, !recentClicks.some(c => c.el.getRootNode() !== document && c.el.getRootNode().host?.localName === 'upload-fit-card'), recentClicks.map(c => c.el.localName).join());
+    check(name, !recentClicks.some(c => c.el.getRootNode() !== document && c.el.getRootNode().host?.localName === 'fitmyphoto-card'), recentClicks.map(c => c.el.localName).join());
     play.done();
   },
 };
@@ -225,7 +225,7 @@ function playUpload() {
     changes,
     choose: (...fs) => pick(play.input, fs),
     received: () => Promise.race([got, new Promise((_, rej) => setTimeout(() => rej(new Error('페이지가 파일을 못 받음')), 10000))]),
-    done: () => { play.root.remove(); document.querySelectorAll('upload-fit-card').forEach(c => c.remove()); },
+    done: () => { play.root.remove(); document.querySelectorAll('fitmyphoto-card').forEach(c => c.remove()); },
   };
 }
 
@@ -238,7 +238,7 @@ Object.assign(tests, {
     const second = await image(1080, 1920); // 이미 규격에 맞음 → 카드 없이 바로 통과
     play.choose(second);
     await settle(); await settle();
-    const cards = document.querySelectorAll('upload-fit-card').length;
+    const cards = document.querySelectorAll('fitmyphoto-card').length;
     check(name, play.changes.length === 1 && play.changes[0][0].size === second.size && cards === 0, JSON.stringify({ changes: play.changes.length, cards }));
     play.done();
   },
@@ -264,7 +264,7 @@ Object.assign(tests, {
     play.input.remove(); // 페이지 모달이 닫혀 input이 DOM에서 빠진 상황
     card.getElementById('orig').click();
     await settle();
-    const toastText = [...document.querySelectorAll('upload-fit-card')].map(c => c.shadowRoot.textContent).join();
+    const toastText = [...document.querySelectorAll('fitmyphoto-card')].map(c => c.shadowRoot.textContent).join();
     check(name, /업로드 칸이 닫혀/.test(toastText) && play.changes.length === 0, toastText);
     play.done();
   },
@@ -348,7 +348,7 @@ Object.assign(tests, {
 async function waitCard() {
   for (let i = 0; i < 200; i++) {
     // 토스트도 같은 태그라서, #to가 있는 진짜 카드를 찾는다
-    const root = [...document.querySelectorAll('upload-fit-card')].map(c => c.shadowRoot).find(r => r.getElementById('to')?.textContent);
+    const root = [...document.querySelectorAll('fitmyphoto-card')].map(c => c.shadowRoot).find(r => r.getElementById('to')?.textContent);
     if (root) return root;
     await new Promise(r => setTimeout(r, 25));
   }

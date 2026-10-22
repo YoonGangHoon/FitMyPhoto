@@ -1,9 +1,9 @@
 # Chrome 웹 스토어 등록 문구
 
-개발자 대시보드에 그대로 붙여넣는다. 업로드할 파일: `./pack.sh`로 만든 `dist/upload-fit-<버전>.zip`.
+개발자 대시보드에 그대로 붙여넣는다. 업로드할 파일: `./pack.sh`로 만든 `dist/fitmyphoto-<버전>.zip`.
 
 ## 스토어 등록정보
-- **이름**: upload-fit
+- **이름**: FitMyPhoto
 - **요약** (manifest `description`, 132자 이하): 업로드 칸 안내문을 읽고, 고른 이미지를 그 규격에 맞게 바꿔 넣어준다. 이미지는 브라우저 밖으로 나가지 않는다.
 - **카테고리**: 생산성 (Productivity)
 - **언어**: 한국어
@@ -26,7 +26,7 @@
 - **권한 사용 근거 — 호스트 권한 (콘텐츠 스크립트 `<all_urls>`)**: 업로드 칸은 어느 사이트에나 있고 규격 문구도 그 페이지에만 적혀 있으므로, 모든 사이트에서 파일 선택 이벤트를 받고 업로드 칸 근처 글자를 읽어야 한다. 읽은 글자와 이미지는 브라우저 안에서만 쓰고 저장·전송하지 않는다. 그 밖의 권한은 요청하지 않는다.
 - **원격 코드 사용**: 아니요
 - **데이터 사용**: 수집하는 항목 없음 (모든 항목 체크 해제)
-- **개인정보처리방침 URL**: https://github.com/YoonGangHoon/upload-fit/blob/main/PRIVACY.md
+- **개인정보처리방침 URL**: https://github.com/YoonGangHoon/FitMyPhoto/blob/main/PRIVACY.md
 
 ## 출시 전 체크
 - [ ] 개발자 등록 (일회성 등록비 $5) — 사용자

@@ -1,4 +1,4 @@
-# upload-fit
+# FitMyPhoto
 
 업로드 칸 근처 안내문(크기·용량·형식)을 읽고, 사용자가 고른 이미지를 그 규격에 맞게 변환해 업로드 칸에 넣어주는 Chrome 확장 (MV3).
 대상: Play Console·App Store Connect 스크린샷, 원서 접수 사이트(토익 등) 증명사진.
@@ -13,7 +13,7 @@
 - `test.html`의 가로채기 테스트는 `content.js`를 빼면 실패해야 한다 (가로챘다는 증거를 확인하는 테스트만 의미가 있다).
 - 실제 사이트 검증은 확장 설치 없이도 된다: Claude in Chrome의 javascript_tool로 `spec.js`·`findSpec`을 페이지에 주입하고,
   `HTMLInputElement.prototype.click`을 막아 파일 선택창이 안 뜨게 한 뒤 실제 클릭으로 확인. 저장·업로드 버튼은 누르지 않는다.
-- 배포용 zip: `./pack.sh` → `dist/upload-fit-<version>.zip` (manifest·js 3개·icons만). 지인 공유와 웹 스토어에 같은 zip. 확장에 새 파일을 추가하면 `pack.sh` 목록도 고친다.
+- 배포용 zip: `./pack.sh` → `dist/fitmyphoto-<version>.zip` (manifest·js 3개·icons만). 지인 공유와 웹 스토어에 같은 zip. 확장에 새 파일을 추가하면 `pack.sh` 목록도 고친다.
 - 브라우저 실행: `chrome://extensions` → 개발자 모드 → "압축해제된 확장 프로그램을 로드합니다" → 이 폴더.
   코드를 고친 뒤 **확장 카드 새로고침 + 대상 탭 새로고침** 둘 다 해야 반영된다.
 

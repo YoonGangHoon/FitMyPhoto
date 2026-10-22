@@ -1,4 +1,4 @@
-# upload-fit
+# FitMyPhoto
 
 업로드 칸 옆에 적힌 안내문(크기·용량·형식)을 읽고, 고른 사진을 **그 규격에 맞게 바꿔서** 넣어주는 Chrome 확장.
 
@@ -17,11 +17,11 @@
 자체 자르기 도구가 있는 곳(사람인 등)이나 규격 문구가 없는 곳에서는 아무것도 하지 않는다.
 
 ## 설치
-1. [Releases](../../releases)에서 `upload-fit-<버전>.zip`을 받아 압축을 푼다.
+1. [Releases](../../releases)에서 `fitmyphoto-<버전>.zip`을 받아 압축을 푼다.
 2. Chrome 주소창에 `chrome://extensions` → 오른쪽 위 **개발자 모드** 켜기.
 3. **압축해제된 확장 프로그램을 로드합니다** → 압축 푼 폴더 선택.
 
-업데이트: 새 zip을 같은 폴더에 덮어 풀고, `chrome://extensions`의 upload-fit 카드에서 새로고침(↻).
+업데이트: 새 zip을 같은 폴더에 덮어 풀고, `chrome://extensions`의 FitMyPhoto 카드에서 새로고침(↻).
 
 ## 쓰는 법
 평소처럼 업로드 버튼을 누르고 사진을 고르면 된다.
