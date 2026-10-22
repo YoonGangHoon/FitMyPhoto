@@ -43,6 +43,7 @@
 ## 배포 (2026-10-22)
 - 아이콘·README·PRIVACY·`pack.sh`·스토어 문구와 이미지(`docs/store/`) 준비 완료. `pack.sh`로 만든 zip은 `--pack-extension`으로 로드 가능 확인.
 - GitHub 공개 저장소 https://github.com/YoonGangHoon/FitMyPhoto , v0.1.0 릴리스에 zip 업로드.
+- 이름 변경 upload-fit → FitMyPhoto (사용자 결정, 영어 이름). 저장소도 이름 변경(옛 주소는 GitHub가 넘겨줌), v0.1.1 릴리스.
 - 남은 것 (사용자): 웹 스토어 개발자 등록($5)과 제출 (`docs/store/listing.md`).
 
 ## MVP에서 빼는 것
