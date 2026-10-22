@@ -20,7 +20,14 @@ function plan(srcW, srcH, spec, fit = 'cover') {
   }
   const sMin = Math.max(0, ...(spec.minSize ? [spec.minSize[0] / w, spec.minSize[1] / h] : []), spec.minSide ? spec.minSide / Math.min(w, h) : 0);
   const sMax = Math.min(Infinity, ...(spec.maxSize ? [spec.maxSize[0] / w, spec.maxSize[1] / h] : []), spec.maxSide ? spec.maxSide / Math.max(w, h) : Infinity);
-  const s = Math.min(Math.max(1, sMin), sMax); // 하한·상한이 충돌하면 상한이 이긴다 (넘치면 거부되니까)
+  if (sMin > sMax && spec.minSize && spec.maxSize) {
+    // 비율 때문에 가로·세로 하한·상한을 배율만으로는 동시에 못 맞춤 → cover는 하한까지 키우고 넘치는 쪽을 상한에서 자르고,
+    // contain은 상한까지 줄이고 모자란 쪽을 하한까지 여백으로 채운다. (Q-Net: 300×400 이상 + 초과 금지 = 정확히 300×400)
+    const s = fit === 'cover' ? sMin : sMax;
+    const clamp = (v, i) => Math.min(spec.maxSize[i], Math.max(spec.minSize[i], Math.round(v)));
+    return { w: clamp(w * s, 0), h: clamp(h * s, 1) };
+  }
+  const s = Math.min(Math.max(1, sMin), sMax); // 그 밖의 충돌은 상한이 이긴다 (넘치면 거부되니까)
   return { w: Math.round(w * s), h: Math.round(h * s) };
 }
 

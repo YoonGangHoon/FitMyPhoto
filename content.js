@@ -175,7 +175,7 @@ function describeSpec(s) {
   const px = ([w, h]) => `${w}×${h}`;
   const parts = [];
   if (s.sizes) parts.push(s.sizes.map(px).join(' 또는 '));
-  if (s.minSize && s.maxSize) parts.push(`${s.minSize[0]}~${s.maxSize[0]}×${s.minSize[1]}~${s.maxSize[1]}`);
+  if (s.minSize && s.maxSize) parts.push(px(s.minSize) === px(s.maxSize) ? px(s.minSize) : `${s.minSize[0]}~${s.maxSize[0]}×${s.minSize[1]}~${s.maxSize[1]}`);
   else if (s.minSize) parts.push(`${px(s.minSize)} 이상`);
   else if (s.maxSize) parts.push(`${px(s.maxSize)} 이하`);
   if (s.minSide) parts.push(`변 ${s.minSide}~${s.maxSide}px`);

@@ -10,16 +10,21 @@ const FORMATS = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp
 
 const CUE = /이어야|여야|해야|이하|이내|미만|초과|이상|최대|최소|까지|사이|권장|기준|규격|제한|가능|허용|용량|형식|형태|확장자|업로드|등록|첨부|하세요|해\s*주세요|주십시오|바랍니다|합니다|가로\s*\(?\s*\d|\b(?:must|should|max(?:imum)?|min(?:imum)?|up to|between|less than|at least|no more than|required|allowed|accepted|only|recommended|formats?)\b/i;
 const BETWEEN = /사이(?!즈)|between/i;
-const MIN_Q = /이상|at least|or (?:more|larger)/i;
-const MAX_Q = /이내|이하|미만|까지|at most|up to|or (?:less|smaller)/i;
+const LOWER = /이상|초과|at least|or (?:more|larger)/i;
+const UPPER = /이내|이하|미만|까지|at most|up to|or (?:less|smaller)/i;
+// "초과되면 강제로 조정됩니다"·"미만이면 등록 불가"처럼 조건문이면 뜻이 뒤집힌다 (초과하면 안 됨 = 상한)
+const IF = /(?:이상|초과|이하|이내|미만)\s*(?:이|가)?\s*(?:되면|하면|이면|인\s*경우|일\s*경우|할\s*경우|될\s*경우|하는\s*경우|시(?![가-힣]))/;
+// "150 x 200픽셀로 조정됩니다" — 사이트가 알아서 바꾸는 결과일 뿐 요구가 아니다
+const AUTO = /^\s*(?:으)?로\s*(?:자동(?:으로)?|강제로)?\s*(?:조정|변환|축소|변경|리사이즈)\s*(?:됩니다|된다|돼요|됨)/;
 
 const NUM = String.raw`(\d+(?:\.\d+)?)`;
 const RANGE = String.raw`${NUM}(?:\s*~\s*${NUM})?`;
 const UNIT = String.raw`(px|pixels?|픽셀|cm|mm)?`;
-// "가로 413 픽셀(pixel), 세로 531 픽셀" · "가로(120px), 세로(160px)" · "가로 395~431 픽셀, 세로 507~550 픽셀"
-const WH_RE = new RegExp(String.raw`가로\s*\(?\s*${RANGE}\s*${UNIT}\s*\)?[^\d가-힣]{0,20}?세로\s*\(?\s*${RANGE}\s*${UNIT}\s*\)?`, 'gi');
-// "512 x 512px" · "1024px X 500px" · "3.5cm*4.5cm" · "137 x 177 pixel"
-const AXB_RE = new RegExp(String.raw`(?<![\d.])${NUM}\s*${UNIT}\s*[x×*]\s*${NUM}\s*${UNIT}`, 'gi');
+// "가로 413 픽셀(pixel), 세로 531 픽셀" · "가로(120px), 세로(160px)" · "가로 395~431 픽셀, 세로 507~550 픽셀" · "가로300 또는 세로400 픽셀"
+const WH_RE = new RegExp(String.raw`가로\s*\(?\s*${RANGE}\s*${UNIT}\s*\)?(?:[^\d가-힣]|또는|및){0,20}?세로\s*\(?\s*${RANGE}\s*${UNIT}\s*\)?`, 'gi');
+// "512 x 512px" · "1024px X 500px" · "3.5cm*4.5cm" · "137 x 177 pixel" · "300픽셀(가로) x 400픽셀(세로)"
+const AXIS = String.raw`(?:\s*\((?:가로|세로)\))?`;
+const AXB_RE = new RegExp(String.raw`(?<![\d.])${NUM}\s*${UNIT}${AXIS}\s*[x×*]\s*${NUM}\s*${UNIT}${AXIS}`, 'gi');
 const BYTES_RE = new RegExp(String.raw`${NUM}\s*(kb|mb|gb)\b`, 'gi');
 const RATIO_RE = new RegExp(String.raw`(?<![\d.:])${NUM}\s*:\s*${NUM}(?![\d.:])`, 'g');
 // 파일 이름의 확장자("07.png", "이름.jpg")는 형식 목록이 아니다
@@ -80,10 +85,13 @@ function parseLine(line) {
   for (const { m, w: [w, wMax], h: [h, hMax] } of px) {
     const tail = after(m).match(/^[^\d,.(]*/)[0]; // 크기 바로 뒤, 다음 숫자·쉼표·마침표 전까지
     const head = line.slice(Math.max(0, m.index - 6), m.index);
+    let bound = LOWER.test(tail) || /최소/.test(head) ? 'min' : UPPER.test(tail) || /최대/.test(head) ? 'max' : null;
+    if (bound && IF.test(tail)) bound = bound === 'min' ? 'max' : 'min';
+    if (AUTO.test(tail)) continue;
     if (w !== wMax || h !== hMax) { spec.minSize = [w, h]; spec.maxSize = [wMax, hMax]; }
     else if (BETWEEN.test(tail)) Object.assign(spec, sideRange(w, h));
-    else if (MIN_Q.test(tail) || /최소/.test(head)) spec.minSize = [w, h];
-    else if (MAX_Q.test(tail) || /최대/.test(head)) spec.maxSize = [w, h];
+    else if (bound === 'min') spec.minSize = [w, h];
+    else if (bound === 'max') spec.maxSize = [w, h];
     else if (uniqRatios.length && !uniqRatios.some(r => sameRatio(r, [w, h]))) Object.assign(spec, sideRange(w, h)); // 비율과 모순 → 변 범위
     else sizes.push([w, h]);
   }

@@ -138,6 +138,10 @@ const tests = {
     const s = describeSpec(parseSpec(PLAY_PHONE));
     check(name, s === '변 320~3840px · 16:9 또는 9:16 · 8MB 이하 · JPEG/PNG', s);
   },
+  async '규격 요약 문구: 하한=상한이면 크기 하나로 (Q-Net 사진 등록)'(name) {
+    const s = describeSpec(parseSpec('사진 원본 또는 조정 크기가 가로300 또는 세로400 픽셀이 초과되면 강제로 150 x 200픽셀로 조정됩니다.(PC저장 동일)\n사진 규격(사이즈 : 300픽셀(가로) x 400픽셀(세로) 이상, 파일형식 : JPG, JPEG)'));
+    check(name, s === '300×400 · JPEG', s);
+  },
   async '전체 흐름: Play 휴대전화에 1080×2340 → 카드 → "맞춰서 넣기" → 페이지는 1080×1920 JPEG를 받는다'(name) {
     const play = playUpload();
     play.choose(await image(1080, 2340));

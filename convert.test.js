@@ -13,6 +13,20 @@ const PASSPORT = parseSpec('가로 413 픽셀(pixel), 세로 531 픽셀 사이�
 const QNET_MIN = parseSpec('- 크기 → 300 X 400 픽셀 이상');
 const QNET_MAX = parseSpec('- 증명사진 파일(jpg형식을 확인 후, 상체가 너무 많이 나오지않았는지, 가로 300px 세로400px 이내인지 확인)');
 const HISTORY = parseSpec('※ 사진 파일은 JPG 또는 GIF 형식만 가능합니다.');
+const QNET_EDITOR = parseSpec('사진 원본 또는 조정 크기가 가로300 또는 세로400 픽셀이 초과되면 강제로 150 x 200픽셀로 조정됩니다.(PC저장 동일)\n사진 규격(사이즈 : 300픽셀(가로) x 400픽셀(세로) 이상, 파일형식 : JPG, JPEG)');
+
+test('Q-Net 사진 등록: 하한=상한 300×400 — 3:4 원본은 줄여서 정확히 300×400', () => {
+  assert.deepEqual(plan(3000, 4000, QNET_EDITOR), { w: 300, h: 400 });
+});
+test('Q-Net 사진 등록: 9:16 원본도 cover면 잘라서 정확히 300×400', () => {
+  assert.deepEqual(plan(1080, 1920, QNET_EDITOR, 'cover'), { w: 300, h: 400 });
+});
+test('Q-Net 사진 등록: contain이면 여백을 붙여서 정확히 300×400', () => {
+  assert.deepEqual(plan(1080, 1920, QNET_EDITOR, 'contain'), { w: 300, h: 400 });
+});
+test('Q-Net 사진 등록: 작은 원본은 키워서 300×400', () => {
+  assert.deepEqual(plan(150, 200, QNET_EDITOR), { w: 300, h: 400 });
+});
 
 test('Play 휴대전화: 1080×2340 캡처(2.17:1)를 cover면 9:16으로 잘라낸다', () => {
   assert.deepEqual(plan(1080, 2340, PLAY_PHONE, 'cover'), { w: 1080, h: 1920 });
