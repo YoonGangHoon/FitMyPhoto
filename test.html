@@ -62,7 +62,74 @@ const tests = {
     text.dispatchEvent(new Event('change', { bubbles: true }));
     check(name, n === 1, `n=${n}`);
   },
+
+  // ── 3단계: 규격 위치 찾기 ──
+  async 'Play 구조: 휴대전화 "애셋 추가" → 패널 "업로드" → 휴대전화 규격'(name) {
+    const play = playFixture();
+    recentClicks.length = 0;
+    play.addButtons.phone.click();
+    play.uploadButton.click();
+    const spec = findSpec(play.input);
+    check(name, spec && spec.minSide === 320 && spec.maxSide === 3840 && spec.maxBytes === 8e6, JSON.stringify(spec));
+    play.root.remove();
+  },
+  async 'Play 구조: 같은 패널 input이라도 아이콘 "애셋 추가" 뒤면 아이콘 규격'(name) {
+    const play = playFixture();
+    recentClicks.length = 0;
+    play.addButtons.icon.click();
+    play.uploadButton.click();
+    const spec = findSpec(play.input);
+    check(name, spec && JSON.stringify(spec.sizes) === '[[512,512]]' && spec.maxBytes === 1e6, JSON.stringify(spec));
+    play.root.remove();
+  },
+  async 'Play 구조: 패널 "업로드"만 누르면 null — 패널 메타데이터(1080x1920px)에 속지 않는다'(name) {
+    const play = playFixture();
+    recentClicks.length = 0;
+    play.uploadButton.click();
+    const spec = findSpec(play.input);
+    check(name, spec === null, JSON.stringify(spec));
+    play.root.remove();
+  },
+  async '평범한 폼: 클릭 기록이 없어도 label 안 안내문을 찾는다'(name) {
+    const root = fixture(`<form><label>사진 등록 <input type="file"> <small>※ 사진 파일은 JPG 또는 GIF 형식만 가능합니다.<br>※ 가로(120px), 세로(160px) 사이즈로 등록해 주세요.</small></label></form>`);
+    recentClicks.length = 0;
+    const spec = findSpec(root.querySelector('input'));
+    check(name, spec && JSON.stringify(spec.sizes) === '[[120,160]]' && spec.formats.join() === 'gif,jpeg', JSON.stringify(spec));
+    root.remove();
+  },
+  async 'aria-describedby로 멀리 떨어진 안내문을 찾는다'(name) {
+    const root = fixture(`<div><p id="hint">파일 크기 500KB 이하, 파일 형식 JPG/JPEG</p></div><div><div><input type="file" aria-describedby="hint"></div></div>`);
+    recentClicks.length = 0;
+    const spec = findSpec(root.querySelector('input'));
+    check(name, spec && spec.maxBytes === 5e5, JSON.stringify(spec));
+    root.remove();
+  },
 };
+
+function fixture(html) {
+  const root = document.createElement('div');
+  root.innerHTML = html;
+  document.body.append(root);
+  return root;
+}
+
+// Play Console 기본 스토어 등록정보 구조 재현: 슬롯마다 규격 문구 + "애셋 추가", 공용 애셋 패널 안에 input 하나.
+// 문구는 실제 화면 원문 (2026-10-22).
+function playFixture() {
+  const slot = (key, title, text) => `<section data-slot="${key}"><h3>${title}</h3><p>${text}</p><div class="assets"><div><button type="button">애셋 추가</button></div></div></section>`;
+  const root = fixture(`
+    <main>
+      ${slot('icon', '앱 아이콘', '앱 아이콘은 PNG 또는 JPEG, 최대 1MB, 512 x 512px이어야 하며 디자인 사양 및 메타데이터 정책을 준수해야 합니다.')}
+      ${slot('feature', '그래픽 이미지', '그래픽 이미지는 PNG 또는 JPEG, 최대 15MB, 1,024px X 500px이어야 합니다. 앱을 추천하도록 선택하면 이 이미지가 사용됩니다. 자세히 알아보기')}
+      ${slot('phone', '휴대전화 스크린샷', '휴대전화 스크린샷을 2~8장 업로드하세요. 스크린샷은 PNG 또는 JPEG, 장당 최대 8MB, 가로세로 비율 16:9 또는 9:16, 가로세로 길이는 320px X 3840px 사이여야 합니다.')}
+    </main>
+    <aside class="asset-library">
+      <div class="list"><div>선택 취소됨 애셋 07.png</div><div>07.png</div><div>9∶16 </div><div>가로세로 비율: 9∶16</div><div>1080x1920px </div><div>크기: 1080x1920px</div><div>2026년 10월 19일</div><div>업로드 날짜: 2026년 10월 19일</div></div>
+      <div class="bottom-bar"><simple-uploader><button type="button">업로드</button><input type="file" multiple accept=".jpeg,.jpg,.png" style="display:none"></simple-uploader></div>
+    </aside>`);
+  const [icon, feature, phone] = [...root.querySelectorAll('main button')];
+  return { root, addButtons: { icon, feature, phone }, uploadButton: root.querySelector('aside button'), input: root.querySelector('aside input') };
+}
 
 (async () => {
   for (const [name, fn] of Object.entries(tests)) {
