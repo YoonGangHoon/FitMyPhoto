@@ -40,8 +40,12 @@
 - [ ] **6. 프리셋 폴백** (0단계에서 필요하다고 확정될 때만).
   완료: ASC 6.9" 슬롯에 1170×2532 → 1320×2868로 변환되어 수락
 
+## 배포 (2026-10-22)
+- 아이콘·README·PRIVACY·`pack.sh`·스토어 문구와 이미지(`docs/store/`) 준비 완료. `pack.sh`로 만든 zip은 `--pack-extension`으로 로드 가능 확인.
+- 남은 것 (사용자): GitHub 저장소·Releases 공개 여부, 웹 스토어 개발자 등록($5)과 제출.
+
 ## MVP에서 빼는 것
-드래그앤드롭 업로드 (`drop`의 `dataTransfer.files`는 읽기 전용), HEIC (Chrome이 디코딩 못 함), LLM 파서, 설정 팝업, 웹스토어 배포
+드래그앤드롭 업로드 (`drop`의 `dataTransfer.files`는 읽기 전용), HEIC (Chrome이 디코딩 못 함), LLM 파서, 설정 팝업
 
 ## 리스크 — 아직 가정
 - ASC 업로드 칸에는 규격 문구가 없고, 틀리면 업로드 후 "The dimensions of one or more screenshots are wrong." 에러만 뜰 것 — 공개 자료로 추정 (화면 이미지는 못 찾음). 팀원 계정으로 확인 필요. 맞다면 6단계 프리셋이 필요하다
