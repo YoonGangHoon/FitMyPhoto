@@ -42,7 +42,8 @@
 
 ## 배포 (2026-10-22)
 - 아이콘·README·PRIVACY·`pack.sh`·스토어 문구와 이미지(`docs/store/`) 준비 완료. `pack.sh`로 만든 zip은 `--pack-extension`으로 로드 가능 확인.
-- 남은 것 (사용자): GitHub 저장소·Releases 공개 여부, 웹 스토어 개발자 등록($5)과 제출.
+- GitHub 공개 저장소 https://github.com/YoonGangHoon/upload-fit , v0.1.0 릴리스에 zip 업로드.
+- 남은 것 (사용자): 웹 스토어 개발자 등록($5)과 제출 (`docs/store/listing.md`).
 
 ## MVP에서 빼는 것
 드래그앤드롭 업로드 (`drop`의 `dataTransfer.files`는 읽기 전용), HEIC (Chrome이 디코딩 못 함), LLM 파서, 설정 팝업
