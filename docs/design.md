@@ -26,6 +26,7 @@
   완료: `node --test` 통과
 - [ ] **2. 가로채기 패스스루** — `change`를 잡아서 같은 파일을 다시 넣기만 한다.
   완료: Play Console·ASC·로컬 테스트 페이지에서 업로드가 평소와 같고, 페이지 `change` 핸들러가 1회만 호출됨
+  진행: 로컬 테스트 통과 (`./test-browser.sh`). 실제 사이트 확인은 확장을 Chrome에 로드한 뒤 (사용자)
 - [ ] **3. 규격 위치 찾기** — 기준점 = 사용자가 마지막으로 클릭한 요소 (capture 단계 `click` 기록). 기준점에서 조상으로 올라가며 텍스트에 규격이 처음 나오는 곳을 채택. 기준점이 없으면 input의 `label[for]`·`aria-describedby`·조상 텍스트, 마지막 폴백은 페이지 안에 규격 문구가 딱 하나일 때.
   완료: 로컬 테스트 페이지(공용 패널 구조 재현 포함)에서 슬롯별로 올바른 규격이 찍히고, 규격 없는 페이지는 `null`
 - [ ] **4. `convert.js`** — 리사이즈, cover/contain, 포맷 변환, 품질 이진탐색으로 용량 맞춤, 알파 평탄화, EXIF 회전, 다중 파일.
@@ -43,7 +44,8 @@
 - 프레임워크가 합성 `change` 이벤트를 받을 것 → 2단계에서 확인 (Play Console은 Angular)
 - canvas의 PNG 출력은 항상 RGBA라서 Apple이 알파 채널로 거부할 수 있음 → 4단계에서 확인
 - cm 규격은 DPI를 가정해야 함 → 비율로만 쓰고, px는 사이트가 명시할 때만 신뢰
-- closed shadow DOM 안의 input은 보이지 않음
+- shadow DOM 안의 input은 못 잡음 — `change`는 `composed: false`라서 shadow root 밖(window)까지 안 나온다 (open이어도 마찬가지)
+- 우리가 다시 쏘는 이벤트는 `isTrusted: false` — 이걸 검사하는 사이트는 동작 안 함 (아직 본 적 없음)
 
 ## 수동 검증 체크리스트
 - [ ] Play Console: 1080×2340 (2:1 초과) 캡처 → 여백 모드 → 수락

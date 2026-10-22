@@ -7,7 +7,9 @@
 작업 전에 현재 단계를 확인하고, 단계가 끝나면 체크박스와 "확인된 사실"을 갱신한다.
 
 ## 명령
-- 테스트: `node --test` (Node 24 내장 러너). `.js`를 고치면 hook이 자동 실행하고 실패하면 결과를 돌려준다. `*.test.js` 수정 때는 건너뛴다.
+- 테스트: `node --test` (Node 24 내장 러너, `spec.js`) + `./test-browser.sh` (headless Chrome으로 `test.html`, DOM·canvas가 필요한 `content.js`·`convert.js`).
+  `.js`를 고치면 hook이 둘 다 자동 실행하고 실패하면 결과를 돌려준다. `*.test.js` 수정 때는 건너뛴다.
+- `test.html`의 브라우저 테스트는 `content.js`를 빼면 실패해야 한다 (가로챘다는 증거를 확인하는 테스트만 의미가 있다).
 - 브라우저 실행: `chrome://extensions` → 개발자 모드 → "압축해제된 확장 프로그램을 로드합니다" → 이 폴더.
   코드를 고친 뒤 **확장 카드 새로고침 + 대상 탭 새로고침** 둘 다 해야 반영된다.
 
@@ -19,6 +21,7 @@
 | `convert.js` | 이미지 + 규격 → 변환된 `File` | 브라우저 (canvas). `test.html`로 확인 |
 | `content.js` | 진입점: `input[type=file]` 가로채기 + 확인 카드 | 브라우저 |
 | `spec.test.js` | 실제 사이트 안내문 원문 = 테스트 케이스 | Node |
+| `test.html` | 브라우저 테스트. content script처럼 `spec.js`·`content.js`를 먼저 로드 | headless Chrome |
 
 ## 규칙
 - 빌드 도구·npm 의존성을 추가하지 않는다. 필요해 보이면 먼저 사용자에게 묻는다.
