@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>upload-fit 브라우저 테스트</title>
+<!-- content script 흉내: document_start처럼 페이지 스크립트보다 먼저 로드한다 -->
+<script src="spec.js"></script>
+<script src="content.js"></script>
+<body>
+<pre id="out">running</pre>
+<script>
+// 실행: CLAUDE.md의 "브라우저 테스트" 명령 (headless Chrome이 결과를 #out에 찍는다)
+const results = [];
+const check = (name, ok, detail = '') => results.push(`${ok ? 'ok' : 'not ok'} - ${name}${ok ? '' : ` :: ${detail}`}`);
+const settle = () => new Promise(r => setTimeout(r, 50));
+const file = (name, type = 'image/png') => new File(['x'], name, { type });
+
+// 사용자가 파일을 고른 것처럼: files를 채우고 input → change 순서로 쏜다. 쏜 이벤트 객체를 돌려준다.
+function pick(input, files) {
+  const dt = new DataTransfer();
+  files.forEach(f => dt.items.add(f));
+  input.files = dt.files;
+  const sent = [new Event('input', { bubbles: true, composed: true }), new Event('change', { bubbles: true })];
+  sent.forEach(e => input.dispatchEvent(e));
+  return sent;
+}
+
+function fileInput(attrs = {}) {
+  const input = Object.assign(document.createElement('input'), { type: 'file', ...attrs });
+  document.body.append(input);
+  const seen = { input: 0, change: 0, names: [], events: [] };
+  input.addEventListener('input', e => { seen.input++; seen.events.push(e); });
+  input.addEventListener('change', e => { seen.change++; seen.events.push(e); seen.names = [...input.files].map(f => f.name); });
+  return { input, seen };
+}
+
+// 페이지가 받은 이벤트가 원래 쏜 것과 다른 객체면 = 가로채서 다시 쏜 것
+const replayed = (sent, seen) => seen.events.length > 0 && seen.events.every(e => !sent.includes(e));
+
+const tests = {
+  async '패스스루: 페이지 핸들러가 input·change 한 번씩, 같은 파일로 호출된다'(name) {
+    const { input, seen } = fileInput();
+    const sent = pick(input, [file('a.png')]);
+    await settle();
+    const ok = replayed(sent, seen) && seen.input === 1 && seen.change === 1 && seen.names.join() === 'a.png';
+    check(name, ok, JSON.stringify({ replayed: replayed(sent, seen), input: seen.input, change: seen.change, names: seen.names }));
+  },
+  async 'multiple: 여러 파일의 순서가 유지된다'(name) {
+    const { input, seen } = fileInput({ multiple: true });
+    pick(input, ['1.png', '2.jpg', '3.png'].map(n => file(n)));
+    await settle();
+    check(name, seen.change === 1 && seen.names.join() === '1.png,2.jpg,3.png', JSON.stringify(seen));
+  },
+  async '파일 없는 change는 손대지 않고 바로 통과한다'(name) {
+    const { input, seen } = fileInput();
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    check(name, seen.change === 1, JSON.stringify(seen)); // 동기로 이미 도착해 있어야 한다
+  },
+  async '파일 input이 아닌 change는 손대지 않는다'(name) {
+    const text = Object.assign(document.createElement('input'), { type: 'text' });
+    document.body.append(text);
+    let n = 0;
+    text.addEventListener('change', () => n++);
+    text.dispatchEvent(new Event('change', { bubbles: true }));
+    check(name, n === 1, `n=${n}`);
+  },
+};
+
+(async () => {
+  for (const [name, fn] of Object.entries(tests)) {
+    try { await fn(name); } catch (e) { check(name, false, e.stack); }
+  }
+  const pass = results.filter(r => r.startsWith('ok')).length;
+  document.getElementById('out').textContent = `${results.join('\n')}\n# ${pass}/${results.length} passed`;
+})();
+</script>
