@@ -122,7 +122,8 @@ function ask(input, spec, checks) {
     const root = host.attachShadow({ mode: 'open' });
     const first = checks.find(c => c.needed);
     const needCount = checks.filter(c => c.needed).length;
-    const canFit = checks.some(c => c.cover.w !== c.contain.w || c.cover.h !== c.contain.h);
+    // 출력 비율이 원본과 다르면 잘라내기/여백 중 골라야 한다 (출력 크기가 같아도 — Q-Net 300×400, 아이콘 512×512)
+    const canFit = checks.some(c => !sameRatio([c.w, c.h], [c.cover.w, c.cover.h]));
     root.innerHTML = `${STYLE}
       <div class="card" role="dialog" aria-labelledby="t" aria-describedby="d">
         <p class="title" id="t">업로드 규격에 맞출까요?</p>
